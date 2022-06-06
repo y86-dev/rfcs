@@ -20,8 +20,8 @@ This allows the compiler to still choose the optimal layout, while providing sim
 
 ```rust
 struct FooUninit {
-	a: MaybeUninit<u8>,
-	b: MaybeUninit<u32>,
+	pub a: MaybeUninit<u8>,
+	pub b: MaybeUninit<u32>,
 }
 
 #[repr(inherit(FooUninit))]
@@ -40,12 +40,12 @@ It also requires that the programmer chooses a good order of the fields to avoid
 ## `repr(inherit($type))`
 
 This repr attribute ensures that the type the attribute is found on has the same in-memory representation as the type given in the attribute. This means that it is sound to `mem::transmute` the two types to and from each other (you still need to ensure custom invariants are upheld).
-The two types of course need to have the same size and specify the same name for each field. But the types and order of the fields do not need to be the same.
+The two types of course need to have the same size and specify the same name for each field. The order of the fields may be different but the types need to be layout compatible.
 For example:
 ```rust
 struct FooUninit {
-	a: MaybeUninit<u8>,
-	b: MaybeUninit<u32>,
+	pub a: MaybeUninit<u8>,
+	pub b: MaybeUninit<u32>,
 }
 
 #[repr(inherit(FooUninit))]
@@ -81,7 +81,7 @@ struct C {
 
 #[repr(transparent)]
 struct D {
-	c: C,
+	pub c: C,
 }
 
 #[repr(inherit(D))]
@@ -96,13 +96,19 @@ struct E {
 I have no knowledge of how the compiler computes the layout of a type, but I have seen some parts of the miri codebase allocating layout for types (I believe these are the same).
 I hope that the compiler has a bit more information than just the alignment and size of a type, otherwise we would need to add that.
 
+## Compiler changes
+
 In order to provide the feature, the compiler needs to
 1. compute the layout of all types not marked with/without transitive fields with `#[repr(inherit(..))]`
 2. iteratively compute the layout of all types marked with `#[repr(inherit(..))]`
-  - check that the fields have compatible layouts
+  - check that the fields with the same name have compatible layouts and that all fields are present
   - check that no conflicting `#[repr(inherit(..))]` was specified
 
 There should exist an iteration limit, for the beginning we could choose something low like 16. There should also exist a similar option to `#[recursion_limit()]`, say `#[repr_inherit_iter_limit()]` to select the limit.
+
+## Semver
+
+The attribute is only allowed to reference types with all fields visible to the current module and incompatible with types marked by `#[non_exhaustive]`. This applies to only the type mentioned in the parenthesis, so the struct you define can have private fields. This is because the attribute relies upon types not renaming fields, changing field types and adding types for semantic version compatibility.
 
 # Drawbacks
 [drawbacks]: #drawbacks
