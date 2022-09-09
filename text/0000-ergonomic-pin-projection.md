@@ -119,11 +119,11 @@ fn project(outer: Pin<&mut Outer>) {
 [struct-declaration]: #struct-declaration
 
 When declaring a struct/enum, authors can add the marker attribute `#[pin]`
-on each field they wish to have structurally pinned. The type of the field has
-to be `!Unpin`, otherwise an error is emitted:
+on each field they wish to have structurally pinned. If the type of the field is
+`Unpin`, a warning is emitted:
 ```rust
 struct Foo {
-	#[pin]
+    #[pin]
 //  ^^^^^^ cannot pin a field that is `Unpin`
 //         help: remove this `#[pin]`
 //         note: Pinning a type that is `Unpin` has no effect, as it can be
@@ -140,7 +140,14 @@ Unpin can now be implemented more acurately, because all of the structurally
 pinned fields are known. Unpin will be automatically implemented for all types
 that only structurally pin `Unpin` fields.
 
+## Drop implementation
+[drop-implementation]: #drop-implementation
 
+Because the drop implementation also is not allowed to move out of the fields,
+this could pose a problem. One way to fix this would be to change the signature
+of drop to be `fn drop(self: Pin<&mut Self>)`. Types that have no structurally
+pinned fields would not need to change anything, as `self.field` would resolve
+to the same thing as before.
 
 # Drawbacks
 [drawbacks]: #drawbacks
